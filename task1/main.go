@@ -8,7 +8,7 @@ import (
 func main() {
 	files := os.Args[1:]
 	if len(files) != 1 {
-		log.Printf("введите %v\t и корректный адрес каталога", os.Args[0])
+		log.Printf("введите %v\tи корректный адрес каталога", os.Args[0])
 		return
 	}
 
@@ -20,7 +20,7 @@ func main() {
 func checkAdress(s string) bool {
 	fileInfo, err := os.Stat(s)
 	if err != nil {
-		log.Printf("введите %v\t и корректный адрес каталога", os.Args[0])
+		log.Printf("введите %v\tи корректный адрес каталога", os.Args[0])
 		os.Exit(1)
 
 	}
