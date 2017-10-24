@@ -8,16 +8,10 @@ import (
 
 func main() {
 	if len(os.Args) != 2 {
-		fmt.Fprintf(os.Stderr, "Usage: %s path/to/kindle\n", os.Args[0])
-		os.Exit(1)
-	}
-	kindleDir := os.Args[1]
-
-	err := dirExists(kindleDir)
-	if err != nil {
 		usage()
 	}
-	err = dirExists(kindleDir + "/documents")
+	kindleDir := os.Args[1]
+	err := dirExists(kindleDir)
 	if err != nil {
 		usage()
 	}
@@ -45,6 +39,6 @@ func dirExists(dir string) error {
 }
 
 func usage() {
-	fmt.Printf("Usage: %s path/to/kindle\n", os.Args[0])
+	fmt.Fprintf(os.Stderr, "Usage: %s path/to/kindle\n", os.Args[0])
 	os.Exit(1)
 }
