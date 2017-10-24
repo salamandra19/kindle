@@ -6,26 +6,33 @@ import (
 	"os"
 )
 
+var usage = fmt.Errorf("Usage: %s path/to/kindle\n", os.Args[0])
+
 func main() {
 	if len(os.Args) != 2 {
-		fmt.Fprintf(os.Stderr, "Usage: %s path/to/kindle\n", os.Args[0])
+		fmt.Fprint(os.Stderr, usage)
 		os.Exit(1)
 	}
 	kindleDir := os.Args[1]
 
 	err := dirExists(kindleDir)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s Usage: %s path/to/kindle\n", err, os.Args[0])
+		fmt.Print(usage)
 		os.Exit(1)
 	}
 	err = dirExists(kindleDir + "/documents")
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s Usage: %s path/to/kindle\n", err, os.Args[0])
+		fmt.Print(usage)
+		os.Exit(1)
+	}
+	err = dirExists(kindleDir + "/documents")
+	if err != nil {
+		fmt.Print(usage)
 		os.Exit(1)
 	}
 	err = dirExists(kindleDir + "/system")
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s Usage: %s path/to/kindle\n", err, os.Args[0])
+		fmt.Print(usage)
 		os.Exit(1)
 	}
 }
