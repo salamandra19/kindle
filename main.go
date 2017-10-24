@@ -1,28 +1,32 @@
 package main
 
 import (
-	"log"
+	"errors"
+	"fmt"
 	"os"
 )
 
 func main() {
-	files := os.Args[1:]
-	if len(files) != 1 {
-		log.Printf("введите %v\tи корректный адрес каталога", os.Args[0])
+	if len(os.Args) != 2 {
+		fmt.Fprintf(os.Stderr, os.Args[0], "/path/to/kindle")
 		return
 	}
+	kindleDir := os.Args[1]
 
-	checkAdress(files[0])
-	checkAdress(files[0] + "/documents")
-	checkAdress(files[0] + "/system")
+	dirExists(kindleDir)
+	dirExists(kindleDir + "/documents")
+	dirExists(kindleDir + "/system")
 }
 
-func checkAdress(s string) bool {
-	fileInfo, err := os.Stat(s)
-	if err != nil {
-		log.Printf("введите %v\tи корректный адрес каталога", os.Args[0])
-		os.Exit(1)
+var ErrNotADir = errors.New("not a directory")
 
+func dirExists(dir string) error {
+	fileInfo, err := os.Stat(dir)
+	if err != nil {
+		return err
 	}
-	return fileInfo.IsDir()
+	if !fileInfo.IsDir() {
+		return ErrNotADir
+	}
+	return nil
 }
