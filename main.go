@@ -21,7 +21,9 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println(base)
+	for _, path := range base {
+		fmt.Println(path)
+	}
 }
 
 var base []string
@@ -31,35 +33,23 @@ func filePath(path string, info os.FileInfo, err error) error {
 		log.Print(err)
 		return nil
 	}
-	if filepath.Dir(kindleDir) == kindleDir {
-		return filepath.SkipDir
+
+	switch filepath.Ext(path) {
+	case (".mobi"), (".pdf"), (".prc"), (".txt"):
+		base = append(base, path)
 	}
-	if filepath.Ext(path) == "" {
-		return nil
+	if match(path) {
+		base = append(base, path)
 	}
-	if filepath.Ext(path) == ".mobi" {
-		base = append(base, path+"\n")
-	}
-	if filepath.Ext(path) == ".pdf" {
-		base = append(base, path+"\n")
-	}
-	if filepath.Ext(path) == ".prc" {
-		base = append(base, path+"\n")
-	}
-	if filepath.Ext(path) == ".txt" {
-		base = append(base, path+"\n")
-	}
-	match(path)
 	return nil
 }
 
-func match(s string) string {
+func match(s string) bool {
 	re := regexp.MustCompile(".azw")
 	if !re.MatchString(s) {
-		return ("")
+		return false
 	}
-	base = append(base, s+"\n")
-	return s
+	return true
 }
 
 var ErrNotADir = errors.New("not a directory")
