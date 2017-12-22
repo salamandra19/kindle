@@ -35,17 +35,19 @@ func filePath(path string, info os.FileInfo, err error) error {
 	}
 
 	switch filepath.Ext(path) {
-	case (".mobi"), (".pdf"), (".prc"), (".txt"):
+	case ".mobi", ".pdf", ".prc", ".txt":
 		base = append(base, path)
-	}
-	if match(path) {
-		base = append(base, path)
+
+	default:
+		if match(filepath.Ext(path)) {
+			base = append(base, path)
+		}
 	}
 	return nil
 }
 
 func match(s string) bool {
-	re := regexp.MustCompile(".azw")
+	re := regexp.MustCompile("[.]azw.*$")
 	if !re.MatchString(s) {
 		return false
 	}
