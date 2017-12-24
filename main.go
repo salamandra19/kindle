@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 )
 
 var kindleDir string
@@ -33,21 +34,28 @@ func filePath(path string, info os.FileInfo, err error) error {
 		log.Print(err)
 		return nil
 	}
+	if filepath.Dir(path) == kindleDir+"/documents" {
+		return nil
+	}
 
 	switch filepath.Ext(path) {
 	case ".mobi", ".pdf", ".prc", ".txt":
-		base = append(base, path)
+		base = append(base, strings.Replace(CollName(filepath.Dir(path)), "/", "-", -1)+"@en-US")
 
 	default:
-		if match(filepath.Ext(path)) {
-			base = append(base, path)
+		if match(path) {
+			base = append(base, strings.Replace(CollName(filepath.Dir(path)), "/", "-", -1)+"@en-US")
 		}
 	}
 	return nil
 }
 
+func CollName(path string) string {
+	return strings.TrimPrefix(path, kindleDir+"/documents/")
+}
+
 func match(s string) bool {
-	re := regexp.MustCompile("[.]azw.*$")
+	re := regexp.MustCompile(`[.]azw.*$`)
 	if !re.MatchString(s) {
 		return false
 	}
