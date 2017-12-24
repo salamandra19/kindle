@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/sha1"
 	"errors"
 	"fmt"
 	"log"
@@ -22,9 +23,6 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	for _, path := range base {
-		fmt.Println(path)
-	}
 }
 
 var base []string
@@ -40,11 +38,13 @@ func filePath(path string, info os.FileInfo, err error) error {
 
 	switch filepath.Ext(path) {
 	case ".mobi", ".pdf", ".prc", ".txt":
-		base = append(base, strings.Replace(CollName(filepath.Dir(path)), "/", "-", -1)+"@en-US")
-
+		a := "*" + fmt.Sprintf("%X", sha1.Sum([]byte("/mnt/us/documents"+strings.Replace(CollName(filepath.Dir(path)), "/", "-", -1)+"@en-US")))
+		fmt.Println(a)
 	default:
 		if match(path) {
-			base = append(base, strings.Replace(CollName(filepath.Dir(path)), "/", "-", -1)+"@en-US")
+			b := "*" + fmt.Sprintf("%X", sha1.Sum([]byte("/mnt/us/documents"+strings.Replace(CollName(filepath.Dir(path)), "/", "-", -1)+"@en-US")))
+
+			fmt.Println(b)
 		}
 	}
 	return nil
