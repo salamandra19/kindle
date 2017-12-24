@@ -55,7 +55,7 @@ func CollName(path string) string {
 }
 
 func match(s string) bool {
-	re := regexp.MustCompile("[.]azw.*$")
+	re := regexp.MustCompile(`[.]azw.*$`)
 	if !re.MatchString(s) {
 		return false
 	}
