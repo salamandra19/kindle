@@ -11,6 +11,14 @@ import (
 	"strings"
 )
 
+type Books struct {
+	Items      []string
+	LastAccess int64
+}
+
+var Items []string
+var collection = make(map[string]*Books)
+
 var kindleDir string
 
 func main() {
@@ -22,6 +30,9 @@ func main() {
 	err := filepath.Walk(kindleDir, filePath)
 	if err != nil {
 		log.Fatal(err)
+	}
+	for k, v := range collection {
+		fmt.Printf("%v\t%v\n", k, v)
 	}
 }
 
@@ -38,13 +49,34 @@ func filePath(path string, info os.FileInfo, err error) error {
 
 	switch filepath.Ext(path) {
 	case ".mobi", ".pdf", ".prc", ".txt":
-		a := "*" + fmt.Sprintf("%X", sha1.Sum([]byte("/mnt/us/documents"+strings.Replace(CollName(filepath.Dir(path)), "/", "-", -1)+"@en-US")))
-		fmt.Println(a)
+		coll := strings.Replace(CollName(filepath.Dir(path)), "/", "-", -1) + "@en-US"
+		sha := fmt.Sprintf("*%X", sha1.Sum([]byte("/mnt/us/documents/"+CollName(path)+"@en-US")))
+		if collection[coll] == nil {
+			collection[coll] = &Books{}
+		}
+		fileInfo, err := os.Stat(kindleDir)
+		if err != nil {
+			return err
+		}
+		fmt.Println(fileInfo.ModTime().Unix())
+		collection[coll].LastAccess = (fileInfo.ModTime().Unix() * 1000)
+		collection[coll].Items = append(collection[coll].Items, sha)
 	default:
 		if match(path) {
-			b := "*" + fmt.Sprintf("%X", sha1.Sum([]byte("/mnt/us/documents"+strings.Replace(CollName(filepath.Dir(path)), "/", "-", -1)+"@en-US")))
-
-			fmt.Println(b)
+			coll := strings.Replace(CollName(filepath.Dir(path)), "/", "-", -1) + "@en-US"
+			sha := fmt.Sprintf("*%X", sha1.Sum([]byte("/mnt/us/documents/"+CollName(path)+"@en-US")))
+			if collection[coll] == nil {
+				collection[coll] = &Books{}
+			}
+			fileInfo, err := os.Stat(kindleDir)
+			if err != nil {
+				return err
+			}
+			fmt.Println(fileInfo.ModTime().Unix())
+			if collection[coll].LastAccess > (fileInfo.ModTime().Unix() * 1000) {
+				collection[coll].LastAccess = (fileInfo.ModTime().Unix() * 1000)
+			}
+			collection[coll].Items = append(collection[coll].Items, sha)
 		}
 	}
 	return nil
