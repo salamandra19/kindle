@@ -16,7 +16,6 @@ type Books struct {
 	LastAccess int64
 }
 
-var Items []string
 var collection = make(map[string]*Books)
 
 var kindleDir string
@@ -49,31 +48,34 @@ func filePath(path string, info os.FileInfo, err error) error {
 
 	switch filepath.Ext(path) {
 	case ".mobi", ".pdf", ".prc", ".txt":
-		coll := strings.Replace(CollName(filepath.Dir(path)), "/", "-", -1) + "@en-US"
-		sha := fmt.Sprintf("*%X", sha1.Sum([]byte("/mnt/us/documents/"+CollName(path)+"@en-US")))
+		coll := strings.Replace(Abs2KindlePath(filepath.Dir(path)), "/", "-", -1) + "@en-US"
+		sha := fmt.Sprintf("*%X", sha1.Sum([]byte("/mnt/us/documents/"+Abs2KindlePath(path))))
 		if collection[coll] == nil {
 			collection[coll] = &Books{}
 		}
-		fileInfo, err := os.Stat(kindleDir)
+		fileInfo, err := os.Stat(path)
 		if err != nil {
 			return err
 		}
 		fmt.Println(fileInfo.ModTime().Unix())
 		collection[coll].LastAccess = (fileInfo.ModTime().Unix() * 1000)
+		if collection[coll].LastAccess < (fileInfo.ModTime().Unix() * 1000) {
+			collection[coll].LastAccess = (fileInfo.ModTime().Unix() * 1000)
+		}
 		collection[coll].Items = append(collection[coll].Items, sha)
 	default:
 		if match(path) {
-			coll := strings.Replace(CollName(filepath.Dir(path)), "/", "-", -1) + "@en-US"
-			sha := fmt.Sprintf("*%X", sha1.Sum([]byte("/mnt/us/documents/"+CollName(path)+"@en-US")))
+			coll := strings.Replace(Abs2KindlePath(filepath.Dir(path)), "/", "-", -1) + "@en-US"
+			sha := fmt.Sprintf("*%X", sha1.Sum([]byte("/mnt/us/documents/"+Abs2KindlePath(path))))
 			if collection[coll] == nil {
 				collection[coll] = &Books{}
 			}
-			fileInfo, err := os.Stat(kindleDir)
+			fileInfo, err := os.Stat(path)
 			if err != nil {
 				return err
 			}
 			fmt.Println(fileInfo.ModTime().Unix())
-			if collection[coll].LastAccess > (fileInfo.ModTime().Unix() * 1000) {
+			if collection[coll].LastAccess < (fileInfo.ModTime().Unix() * 1000) {
 				collection[coll].LastAccess = (fileInfo.ModTime().Unix() * 1000)
 			}
 			collection[coll].Items = append(collection[coll].Items, sha)
@@ -82,7 +84,7 @@ func filePath(path string, info os.FileInfo, err error) error {
 	return nil
 }
 
-func CollName(path string) string {
+func Abs2KindlePath(path string) string {
 	return strings.TrimPrefix(path, kindleDir+"/documents/")
 }
 
