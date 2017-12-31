@@ -48,40 +48,30 @@ func filePath(path string, info os.FileInfo, err error) error {
 
 	switch filepath.Ext(path) {
 	case ".mobi", ".pdf", ".prc", ".txt":
-		coll := strings.Replace(Abs2KindlePath(filepath.Dir(path)), "/", "-", -1) + "@en-US"
-		sha := fmt.Sprintf("*%X", sha1.Sum([]byte("/mnt/us/documents/"+Abs2KindlePath(path))))
-		if collection[coll] == nil {
-			collection[coll] = &Books{}
-		}
-		fileInfo, err := os.Stat(path)
-		if err != nil {
-			return err
-		}
-		fmt.Println(fileInfo.ModTime().Unix())
-		collection[coll].LastAccess = (fileInfo.ModTime().Unix() * 1000)
-		if collection[coll].LastAccess < (fileInfo.ModTime().Unix() * 1000) {
-			collection[coll].LastAccess = (fileInfo.ModTime().Unix() * 1000)
-		}
-		collection[coll].Items = append(collection[coll].Items, sha)
+		makeColl(path)
 	default:
 		if match(path) {
-			coll := strings.Replace(Abs2KindlePath(filepath.Dir(path)), "/", "-", -1) + "@en-US"
-			sha := fmt.Sprintf("*%X", sha1.Sum([]byte("/mnt/us/documents/"+Abs2KindlePath(path))))
-			if collection[coll] == nil {
-				collection[coll] = &Books{}
-			}
-			fileInfo, err := os.Stat(path)
-			if err != nil {
-				return err
-			}
-			fmt.Println(fileInfo.ModTime().Unix())
-			if collection[coll].LastAccess < (fileInfo.ModTime().Unix() * 1000) {
-				collection[coll].LastAccess = (fileInfo.ModTime().Unix() * 1000)
-			}
-			collection[coll].Items = append(collection[coll].Items, sha)
+			makeColl(path)
 		}
 	}
 	return nil
+}
+
+func makeColl(path string) {
+	coll := strings.Replace(Abs2KindlePath(filepath.Dir(path)), "/", "-", -1) + "@en-US"
+	sha := fmt.Sprintf("*%X", sha1.Sum([]byte("/mnt/us/documents/"+Abs2KindlePath(path))))
+	if collection[coll] == nil {
+		collection[coll] = &Books{}
+	}
+	fileInfo, err := os.Stat(path)
+	if err != nil {
+		fmt.Println(err)
+	}
+	collection[coll].LastAccess = (fileInfo.ModTime().Unix() * 1000)
+	if collection[coll].LastAccess < (fileInfo.ModTime().Unix() * 1000) {
+		collection[coll].LastAccess = (fileInfo.ModTime().Unix() * 1000)
+	}
+	collection[coll].Items = append(collection[coll].Items, sha)
 }
 
 func Abs2KindlePath(path string) string {
