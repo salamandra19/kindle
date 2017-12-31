@@ -11,6 +11,13 @@ import (
 	"strings"
 )
 
+type Books struct {
+	Items      []string
+	LastAccess int64
+}
+
+var collection = make(map[string]*Books)
+
 var kindleDir string
 
 func main() {
@@ -22,6 +29,9 @@ func main() {
 	err := filepath.Walk(kindleDir, filePath)
 	if err != nil {
 		log.Fatal(err)
+	}
+	for k, v := range collection {
+		fmt.Printf("%v\t%v\n", k, v)
 	}
 }
 
@@ -38,19 +48,39 @@ func filePath(path string, info os.FileInfo, err error) error {
 
 	switch filepath.Ext(path) {
 	case ".mobi", ".pdf", ".prc", ".txt":
-		a := "*" + fmt.Sprintf("%X", sha1.Sum([]byte("/mnt/us/documents"+strings.Replace(CollName(filepath.Dir(path)), "/", "-", -1)+"@en-US")))
-		fmt.Println(a)
+		err := makeColl(path)
+		if err != nil {
+			return err
+		}
 	default:
 		if match(path) {
-			b := "*" + fmt.Sprintf("%X", sha1.Sum([]byte("/mnt/us/documents"+strings.Replace(CollName(filepath.Dir(path)), "/", "-", -1)+"@en-US")))
-
-			fmt.Println(b)
+			err := makeColl(path)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil
 }
 
-func CollName(path string) string {
+func makeColl(path string) error {
+	coll := strings.Replace(Abs2KindlePath(filepath.Dir(path)), "/", "-", -1) + "@en-US"
+	sha := fmt.Sprintf("*%x", sha1.Sum([]byte("/mnt/us/documents/"+Abs2KindlePath(path))))
+	if collection[coll] == nil {
+		collection[coll] = &Books{}
+	}
+	fileInfo, err := os.Stat(path)
+	if err != nil {
+		return err
+	}
+	if collection[coll].LastAccess < (fileInfo.ModTime().Unix() * 1000) {
+		collection[coll].LastAccess = (fileInfo.ModTime().Unix() * 1000)
+	}
+	collection[coll].Items = append(collection[coll].Items, sha)
+	return nil
+}
+
+func Abs2KindlePath(path string) string {
 	return strings.TrimPrefix(path, kindleDir+"/documents/")
 }
 
