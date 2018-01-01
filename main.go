@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/sha1"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -30,9 +31,28 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	for k, v := range collection {
-		fmt.Printf("%v\t%v\n", k, v)
+	Catalog, err := os.Create("collection.json")
+	if err != nil {
+		fmt.Printf("%v", err)
 	}
+	(json.NewEncoder(Catalog)).Encode(collection)
+	if err != nil {
+		log.Fatal(err)
+	}
+	file, err := os.Open("collection.json")
+	if err != nil {
+		log.Fatal(err)
+	}
+	var data = make([]byte, 350)
+	count, err := file.Read(data)
+	if err != nil {
+		log.Fatal(err)
+	}
+	file.Close()
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("%d\t%q\n", count, data)
 }
 
 var base []string
