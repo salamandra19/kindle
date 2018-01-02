@@ -13,8 +13,8 @@ import (
 )
 
 type Books struct {
-	Items      []string
-	LastAccess int64
+	Items      []string `json:"items"`
+	LastAccess int64    `json:"lastAccess"`
 }
 
 var collection = make(map[string]*Books)
@@ -31,28 +31,14 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	Catalog, err := os.Create("collection.json")
-	if err != nil {
-		fmt.Printf("%v", err)
-	}
-	(json.NewEncoder(Catalog)).Encode(collection)
+	Catalog, err := os.Create("collection")
 	if err != nil {
 		log.Fatal(err)
 	}
-	file, err := os.Open("collection.json")
+	err = json.NewEncoder(Catalog).Encode(collection)
 	if err != nil {
 		log.Fatal(err)
 	}
-	var data = make([]byte, 350)
-	count, err := file.Read(data)
-	if err != nil {
-		log.Fatal(err)
-	}
-	file.Close()
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Printf("%d\t%q\n", count, data)
 }
 
 var base []string
