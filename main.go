@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/sha1"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -12,8 +13,8 @@ import (
 )
 
 type Books struct {
-	Items      []string
-	LastAccess int64
+	Items      []string `json:"items"`
+	LastAccess int64    `json:"lastAccess"`
 }
 
 var collection = make(map[string]*Books)
@@ -30,8 +31,13 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	for k, v := range collection {
-		fmt.Printf("%v\t%v\n", k, v)
+	Catalog, err := os.Create("collection")
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = json.NewEncoder(Catalog).Encode(collection)
+	if err != nil {
+		log.Fatal(err)
 	}
 }
 
