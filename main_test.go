@@ -1,6 +1,8 @@
 package main
 
 import (
+	"io/ioutil"
+	"os"
 	"testing"
 
 	"github.com/powerman/check"
@@ -10,48 +12,206 @@ import (
 func TestMain(m *testing.M) { check.TestMain(m) }
 
 // - путь path/documents/cat
-// - путь path/documents
-
-func TestAbs2KindlePath(tt *testing.T) {
-	t := check.T(tt)
-	cases := []struct {
-		path string
-		want string
-	}{
-		{"/home/tanya/documents/Author/book.txt", "Author/book.txt"},
-		{"/home/tanya/documents", ""},
-	}
-	for _, v := range cases {
-		got := Abs2KindlePath(v.path)
-		t.Equal(got, v.want)
-	}
+func Tests(t *testing.T) {
+	t.Run("Abs2KindlePath", func(tt *testing.T) {
+		t := check.T(tt)
+		origKindleDir := kindleDir
+		cases := []struct {
+			path string
+			want string
+		}{
+			{"/mnt/kindle/documents/Author/book.txt", "Author/book.txt"},
+		}
+		kindleDir = "/mnt/kindle"
+		for _, v := range cases {
+			got := Abs2KindlePath(v.path)
+			t.Equal(got, v.want)
+		}
+		kindleDir = origKindleDir
+	})
 }
 
-/*
-func TestIsKindle(tt *testing.T) {
-	t := check.T(tt)
 // - !IsDir()
-// - путь IsDir, содержит documents, system
-// - путь IsDir, содержит documents, не содержит system
-// - путь IsDir, содержит system, не содержит documents
-// - путь IsDir, не содержит documents, не содержит system
-// - путь !IsDir, содержит documents, system
-// - путь !IsDir, содержит documents, не содержит system
-// - путь !IsDir, содержит system, не содержит documents
-	cases := []struct{
-		dir string
+func TestIsKindle0(tt *testing.T) {
+	t := check.T(tt)
+	tmpDir, err := ioutil.TempDir("", "TestIsKindle")
+	t.Nil(err)
+	fpath := tmpDir + "/documents"
+	f, err := os.Create(fpath)
+	t.Nil(err)
+	defer f.Close()
+	cases := []struct {
+		dir  string
 		want bool
 	}{
-		{"/gocode/src/library",true},
-		{"",true},
-		{"",true},
-		{"",true},
-		{"",true},
+		{fpath, false},
 	}
-
+	for _, v := range cases {
+		got := isKindle(v.dir)
+		t.Equal(got, v.want, kindleDir)
 	}
+	err = os.Remove(tmpDir + "/documents")
+	t.Nil(err)
+	err = os.Remove(tmpDir)
+	t.Nil(err)
 }
-*/
+
+// - путь IsDir, содержит documents, system
+func TestIsKindle1(tt *testing.T) {
+	t := check.T(tt)
+	tmpDir, err := ioutil.TempDir("", "TestIsKindle")
+	t.Nil(err)
+	path := tmpDir + "/documents"
+	err = os.Mkdir(path, 0755)
+	t.Nil(err)
+	path = tmpDir + "/system"
+	err = os.Mkdir(path, 0755)
+	t.Nil(err)
+	cases := []struct {
+		dir  string
+		want bool
+	}{
+		{tmpDir, true},
+	}
+	for _, v := range cases {
+		got := isKindle(v.dir)
+		t.Equal(got, v.want, kindleDir)
+	}
+	err = os.Remove(tmpDir + "/documents")
+	t.Nil(err)
+	err = os.Remove(tmpDir + "/system")
+	t.Nil(err)
+	err = os.Remove(tmpDir)
+	t.Nil(err)
+}
+
+// - путь IsDir, содержит documents, не содержит system
+func TestIsKindle2(tt *testing.T) {
+	t := check.T(tt)
+	tmpDir, err := ioutil.TempDir("", "TestIsKindle")
+	t.Nil(err)
+	path := tmpDir + "/documents"
+	err = os.Mkdir(path, 0755)
+	t.Nil(err)
+	cases := []struct {
+		dir  string
+		want bool
+	}{
+		{tmpDir, false},
+	}
+	for _, v := range cases {
+		got := isKindle(v.dir)
+		t.Equal(got, v.want, kindleDir)
+	}
+	err = os.Remove(tmpDir + "/documents")
+	t.Nil(err)
+	err = os.Remove(tmpDir)
+	t.Nil(err)
+}
+
+// - путь IsDir, содержит system, не содержит documents
+func TestIsKindle3(tt *testing.T) {
+	t := check.T(tt)
+	tmpDir, err := ioutil.TempDir("", "TestIsKindle")
+	t.Nil(err)
+	path := tmpDir + "/system"
+	err = os.Mkdir(path, 0755)
+	t.Nil(err)
+	cases := []struct {
+		dir  string
+		want bool
+	}{
+		{tmpDir, false},
+	}
+	for _, v := range cases {
+		got := isKindle(v.dir)
+		t.Equal(got, v.want, kindleDir)
+	}
+	err = os.Remove(tmpDir + "/system")
+	t.Nil(err)
+	err = os.Remove(tmpDir)
+	t.Nil(err)
+}
+
+// - путь IsDir, не содержит documents, не содержит system
+func TestIsKindle4(tt *testing.T) {
+	t := check.T(tt)
+	tmpDir, err := ioutil.TempDir("", "TestIsKindle")
+	t.Nil(err)
+	cases := []struct {
+		dir  string
+		want bool
+	}{
+		{tmpDir, false},
+	}
+	for _, v := range cases {
+		got := isKindle(v.dir)
+		t.Equal(got, v.want, kindleDir)
+	}
+	err = os.Remove(tmpDir)
+	t.Nil(err)
+}
+
+// - путь IsDir, documents не каталог, system каталог
+func TestIsKindle5(tt *testing.T) {
+	t := check.T(tt)
+	tmpDir, err := ioutil.TempDir("", "TestIsKindle")
+	t.Nil(err)
+	fpath := tmpDir + "/documents"
+	f, err := os.Create(fpath)
+	t.Nil(err)
+	defer f.Close()
+	path := tmpDir + "/system"
+	err = os.Mkdir(path, 0755)
+	t.Nil(err)
+	cases := []struct {
+		dir  string
+		want bool
+	}{
+		{tmpDir, false},
+	}
+	for _, v := range cases {
+		got := isKindle(v.dir)
+		t.Equal(got, v.want, kindleDir)
+	}
+	err = os.Remove(tmpDir + "/documents")
+	t.Nil(err)
+	err = os.Remove(tmpDir + "/system")
+	t.Nil(err)
+	err = os.Remove(tmpDir)
+	t.Nil(err)
+}
+
+// - путь IsDir, system не каталог, documents каталог
+func TestIsKindle6(tt *testing.T) {
+	t := check.T(tt)
+	tmpDir, err := ioutil.TempDir("", "TestIsKindle")
+	t.Nil(err)
+	fpath := tmpDir + "/system"
+	f, err := os.Create(fpath)
+	t.Nil(err)
+	defer f.Close()
+	path := tmpDir + "/documents"
+	err = os.Mkdir(path, 0755)
+	t.Nil(err)
+	cases := []struct {
+		dir  string
+		want bool
+	}{
+		{tmpDir, false},
+	}
+	for _, v := range cases {
+		got := isKindle(v.dir)
+		t.Equal(got, v.want, kindleDir)
+	}
+	err = os.Remove(tmpDir + "/system")
+	t.Nil(err)
+	err = os.Remove(tmpDir + "/documents")
+	t.Nil(err)
+	err = os.Remove(tmpDir)
+	t.Nil(err)
+}
+
 // - пустая строка   = !nil
 // - не файл/каталог = !nil
 // - файл            = ErrNotADir
