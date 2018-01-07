@@ -87,7 +87,11 @@ func makeColl(path string) error {
 }
 
 func Abs2KindlePath(path string) string {
-	return strings.TrimPrefix(path, kindleDir+"/documents/")
+	catalog := strings.TrimPrefix(path, kindleDir+"/documents/")
+	if catalog == path {
+		panic("not correct catalog name")
+	}
+	return catalog
 }
 
 func match(s string) bool {
