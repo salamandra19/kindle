@@ -24,12 +24,87 @@ func TestAbs2KindlePath(tt *testing.T) {
 	t.PanicMatch(func() { Abs2KindlePath("") }, `not a kindle path`)
 }
 
+// - создать временный каталог и в нем нужные для теста функции/файлы
+// - убедиться что collection пустой
+// - вызвать makeColl от одного из созданных файлов
+// - убедиться, что collection изменился ожидаемым образом
+// - вызвать makeColl от следующего из созданных файлов
+// - убедиться, что collection изменился ожидаемым образом
+// - вызвать makeColl от каталога, вместо файла
+// - убедиться, что программа выдаёт ошибку или панику
+// - передать makeColl не корректный путь
+// - убедиться, что программа выдаёт ошибку или панику
+// - записать значение в LastAccess
+// - передать путь к более свежему файлу
+// - убедиться, что в LastAccess записаны данные модификации самые свежие
+// - убедиться, что в collection добавляются новые записи
+// - очистить collection и временный каталог
+func TestMakeColl(tt *testing.T) {
+	t := check.T(tt)
+
+	tmpDir, err := ioutil.TempDir("", "gotest")
+	t.Nil(err)
+	defer func() { t.Nil(os.Remove(tmpDir)) }()
+
+	origKindleDir := kindleDir
+	defer func() { kindleDir = origKindleDir }()
+	kindleDir = tmpDir
+
+	dpath := tmpDir + "/documents"
+	dirs := []string{
+		tmpDir + "/system",
+		dpath,
+		dpath + "/Author",
+		dpath + "/Author/new",
+	}
+	files := []string{
+		dpath + "/Author/new/books.txt",
+		dpath + "/Author/new/workpad.txt",
+	}
+
+	for _, d := range dirs {
+		t.Nil(os.Mkdir(d, 0755))
+	}
+	defer func() {
+		for i := len(dirs) - 1; i >= 0; i-- {
+			t.Nil(os.Remove(dirs[i]))
+		}
+	}()
+
+	for _, f := range files {
+		t.Nil(ioutil.WriteFile(f, nil, 0644))
+	}
+	defer func() {
+		for i := len(files) - 1; i >= 0; i-- {
+			t.Nil(os.Remove(files[i]))
+		}
+	}()
+
+	t.Len(collection, 0)
+
+	type Books struct {
+		Items      []string
+		LastAccess int64
+	}
+
+	var collectionTest = make(map[string]*Books)
+
+	collectionTest["Author-new@en-US"] = &Books{}
+	collectionTest["Author-new@en-US"].Items = append(collectionTest["Author-new@en-US"].Items, "*e7ecb5dd54c6a7bad47af33c936ed4c1d3deca01")
+	fileInfo, err := os.Stat(dpath + "/Author/new/books.txt")
+	t.Nil(err)
+	collectionTest["Author-new@en-US"].LastAccess = fileInfo.ModTime().Unix() * 1000
+
+	t.Nil(makeColl(kindleDir + "/documents/Author/new/books.txt"))
+	t.DeepEqual(collectionTest, collection)
+}
+
 func TestIsKindle(tt *testing.T) {
 	t := check.T(tt)
 
 	tmpDir, err := ioutil.TempDir("", "gotest")
 	t.Nil(err)
-	defer func() { os.Remove(tmpDir) }()
+	defer func() { t.Nil(os.Remove(tmpDir)) }()
 
 	dpath := tmpDir + "/documents"
 	spath := tmpDir + "/system"
