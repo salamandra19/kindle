@@ -4,6 +4,7 @@ import (
 	"io/ioutil"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/powerman/check"
 	_ "github.com/smartystreets/goconvey/convey"
@@ -39,6 +40,7 @@ func TestAbs2KindlePath(tt *testing.T) {
 // - убедиться, что в LastAccess записаны данные модификации самые свежие
 // - убедиться, что в collection добавляются новые записи
 // - очистить collection и временный каталог
+
 func TestMakeColl(tt *testing.T) {
 	t := check.T(tt)
 
@@ -82,21 +84,75 @@ func TestMakeColl(tt *testing.T) {
 
 	t.Len(collection, 0)
 
-	type Books struct {
-		Items      []string
-		LastAccess int64
-	}
-
 	var collectionTest = make(map[string]*Books)
+	defer func() { collection = make(map[string]*Books) }()
 
-	collectionTest["Author-new@en-US"] = &Books{}
-	collectionTest["Author-new@en-US"].Items = append(collectionTest["Author-new@en-US"].Items, "*e7ecb5dd54c6a7bad47af33c936ed4c1d3deca01")
 	fileInfo, err := os.Stat(dpath + "/Author/new/books.txt")
 	t.Nil(err)
-	collectionTest["Author-new@en-US"].LastAccess = fileInfo.ModTime().Unix() * 1000
-
+	collectionTest["Author-new@en-US"] = &Books{
+		Items:      []string{"*e7ecb5dd54c6a7bad47af33c936ed4c1d3deca01"},
+		LastAccess: fileInfo.ModTime().Unix() * 1000,
+	}
 	t.Nil(makeColl(kindleDir + "/documents/Author/new/books.txt"))
 	t.DeepEqual(collectionTest, collection)
+
+	fileInfo, err = os.Stat(dpath + "/Author/new/workpad.txt")
+	t.Nil(err)
+	collectionTest["Author-new@en-US"].Items = append(collectionTest["Author-new@en-US"].Items, "*1c80d93e03067312fd43b17d2a339d375e4bd560")
+	collectionTest["Author-new@en-US"].LastAccess = fileInfo.ModTime().Unix() * 1000
+	t.Nil(makeColl(kindleDir + "/documents/Author/new/workpad.txt"))
+	t.DeepEqual(collection, collectionTest)
+
+	pathFirst := dpath + "/Author/new/timePast.txt"
+	timeFirst := time.Now().Add(-10 * time.Second)
+	t.Nil(ioutil.WriteFile(pathFirst, nil, 0644))
+	t.Nil(os.Chtimes(pathFirst, timeFirst, timeFirst))
+	defer func() { os.Remove(pathFirst) }()
+	collectionTest["Author-new@en-US"].Items = append(collectionTest["Author-new@en-US"].Items, "*86062d936f58942786e6e9dfb8443ddfedfe0e28")
+	t.Log(collectionTest["Author-new@en-US"].LastAccess)
+	t.Nil(makeColl(pathFirst))
+	t.DeepEqual(collection, collectionTest)
+
+	pathSecond := dpath + "/Author/new/timeNow.txt"
+	timeSecond := time.Now()
+	t.Nil(ioutil.WriteFile(pathSecond, nil, 0644))
+	t.Nil(os.Chtimes(pathSecond, timeSecond, timeSecond))
+	defer func() { os.Remove(pathSecond) }()
+	fileInfo, err = os.Stat(pathSecond)
+	t.Nil(err)
+	collectionTest["Author-new@en-US"].Items = append(collectionTest["Author-new@en-US"].Items, "*14a25ed50202fbc2c93fe3acb2dd72386212302c")
+	collectionTest["Author-new@en-US"].LastAccess = fileInfo.ModTime().Unix() * 1000
+	t.Log(collectionTest["Author-new@en-US"].LastAccess)
+	t.Nil(makeColl(pathSecond))
+	t.DeepEqual(collection, collectionTest)
+
+	pathThird := dpath + "/Author/new/timeFuture.txt"
+	timeThird := time.Now().Add(10 * time.Second)
+	t.Nil(ioutil.WriteFile(pathThird, nil, 0644))
+	t.Nil(os.Chtimes(pathThird, timeThird, timeThird))
+	defer func() { os.Remove(pathThird) }()
+	fileInfo, err = os.Stat(pathThird)
+	t.Nil(err)
+	collectionTest["Author-new@en-US"].Items = append(collectionTest["Author-new@en-US"].Items, "*b3916c8105ceebfa611abf38ce331c4873046de7")
+	collectionTest["Author-new@en-US"].LastAccess = fileInfo.ModTime().Unix() * 1000
+	t.Log(collectionTest["Author-new@en-US"].LastAccess)
+	t.Nil(makeColl(pathThird))
+	t.DeepEqual(collection, collectionTest)
+
+	pathNewDir := dpath + "/Author/morenew"
+	t.Nil(os.Mkdir(pathNewDir, 0755))
+	defer func() { os.Remove(pathNewDir) }()
+	pathNewKey := dpath + "/Author/morenew/NewKey.txt"
+	t.Nil(ioutil.WriteFile(pathNewKey, nil, 0644))
+	defer func() { os.Remove(pathNewKey) }()
+	fileInfo, err = os.Stat(pathNewKey)
+	t.Nil(err)
+	collectionTest["Author-morenew@en-US"] = &Books{
+		Items:      []string{"*5a46239d8e667091663fd4792e74bc6bf0eddaea"},
+		LastAccess: fileInfo.ModTime().Unix() * 1000,
+	}
+	t.Nil(makeColl(pathNewKey))
+	t.DeepEqual(collection, collectionTest)
 }
 
 func TestIsKindle(tt *testing.T) {
