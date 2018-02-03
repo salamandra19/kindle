@@ -25,25 +25,141 @@ func TestAbs2KindlePath(tt *testing.T) {
 	t.PanicMatch(func() { Abs2KindlePath("") }, `not a kindle path`)
 }
 
-// - создать временный каталог и в нем нужные для теста функции/файлы
-// - убедиться что collection пустой
-// - вызвать makeColl от одного из созданных файлов
-// - убедиться, что collection изменился ожидаемым образом
-// - вызвать makeColl от следующего из созданных файлов
-// - убедиться, что collection изменился ожидаемым образом
-// - вызвать makeColl от каталога, вместо файла
-// - убедиться, что программа выдаёт ошибку или панику
-// - передать makeColl не корректный путь
-// - убедиться, что программа выдаёт ошибку или панику
-// - записать значение в LastAccess
-// - передать путь к более свежему файлу
-// - убедиться, что в LastAccess записаны данные модификации самые свежие
-// - убедиться, что в collection добавляются новые записи
-// - очистить collection и временный каталог
+// - передать путь к существующим файлам
+//   - убедиться, что программа произвела корректные записи в collection
+func addbooks(t *check.C, path string) int64 {
+	fileInfo, err := os.Stat(path)
+	t.Nil(err)
+	lastAccess := fileInfo.ModTime().Unix() * 1000
+	t.Nil(filePath(path, fileInfo, err))
+	return lastAccess
+}
+
+func TestFilePath(tt *testing.T) {
+	t := check.T(tt)
+
+	tmpDir, err := ioutil.TempDir("", "gotest")
+	t.Nil(err)
+	defer func() { t.Nil(os.Remove(tmpDir)) }()
+
+	origKindleDir := kindleDir
+	defer func() { kindleDir = origKindleDir }()
+	kindleDir = tmpDir
+
+	dpath := tmpDir + "/documents"
+	dirs := []string{
+		tmpDir + "/system",
+		dpath,
+		dpath + "/Author",
+		dpath + "/Author/new",
+	}
+	files := []string{
+		dpath + "/Author/file.txt",
+		dpath + "/Author/new/file.pdf",
+		dpath + "/Author/new/file.mobi",
+		dpath + "/Author/new/file.prc",
+		dpath + "/Author/new/file.azw",
+		dpath + "/Author/new/file.azw3",
+		dpath + "/Author/new/file.jpg",
+		dpath + "/Author/new/file",
+	}
+	for _, d := range dirs {
+		t.Nil(os.Mkdir(d, 0755))
+	}
+	defer func() {
+		for i := len(dirs) - 1; i >= 0; i-- {
+			t.Nil(os.Remove(dirs[i]))
+		}
+	}()
+	for _, f := range files {
+		t.Nil(ioutil.WriteFile(f, nil, 0644))
+	}
+	defer func() {
+		for i := len(files) - 1; i >= 0; i-- {
+			t.Nil(os.Remove(files[i]))
+		}
+	}()
+
+	var collectionTest = make(map[string]*Books)
+	defer func() { collection = make(map[string]*Books) }()
+
+	fileInfo, err := os.Stat(dpath + "/Author/file.txt")
+	t.Nil(err)
+	collectionTest["Author@en-US"] = &Books{
+		Items:      []string{"*7c491ea1e58939598afbbcb48a5c5174d47b4650"},
+		LastAccess: fileInfo.ModTime().Unix() * 1000,
+	}
+	t.Nil(filePath(dpath+"/Author/file.txt", fileInfo, err))
+	t.DeepEqual(collection, collectionTest)
+
+	fileInfo, err = os.Stat(dpath + "/Author/new/file.pdf")
+	t.Nil(err)
+	collectionTest["Author-new@en-US"] = &Books{
+		Items:      []string{"*f827769a187f768d4145dfaceddfc4525b8e2e49"},
+		LastAccess: fileInfo.ModTime().Unix() * 1000,
+	}
+	t.Nil(filePath(dpath+"/Author/new/file.pdf", fileInfo, err))
+	t.DeepEqual(collection, collectionTest)
+
+	books := collectionTest["Author-new@en-US"]
+
+	lastAccess := addbooks(t, dpath+"/Author/new/file.mobi")
+	books.Items = append(books.Items, "*6e57bc1c50ce96b679b7eb2b153f610e179d6609")
+	books.LastAccess = lastAccess
+	t.DeepEqual(collection, collectionTest)
+
+	lastAccess = addbooks(t, dpath+"/Author/new/file.prc")
+	books.Items = append(books.Items, "*8c2e2e36abee81f32ebf61d40f038a8c80b0893b")
+	books.LastAccess = lastAccess
+	t.DeepEqual(collection, collectionTest)
+
+	lastAccess = addbooks(t, dpath+"/Author/new/file.azw")
+	books.Items = append(books.Items, "*fecdd63969b387326772b2ff5586b83ede5682cf")
+	books.LastAccess = lastAccess
+	t.DeepEqual(collection, collectionTest)
+
+	lastAccess = addbooks(t, dpath+"/Author/new/file.azw3")
+	books.Items = append(books.Items, "*e465ef6ecde1994cdfc397df6841fd82baccc285")
+	books.LastAccess = lastAccess
+	t.DeepEqual(collection, collectionTest)
+
+	// - передать путь с не соответствующим расширением
+	//   - убедиться, что запись в collection не произведена
+	fileInfo, err = os.Stat(dpath + "/Author/new/file.jpg")
+	t.Nil(err)
+	t.Nil(filePath(dpath+"/Author/new/file.jpg", fileInfo, err))
+	t.DeepEqual(collection, collectionTest)
+
+	// - передать путь без расширения
+	//   - убедиться,что запись в collection не произведена
+	fileInfo, err = os.Stat(dpath + "/Author/new/file")
+	t.Nil(err)
+	t.Nil(filePath(dpath+"/Author/new/file", fileInfo, err))
+	t.DeepEqual(collection, collectionTest)
+
+	// - передать путь к каталогу
+	//   - убедиться, что запись в collection не произведена
+	fileInfo, err = os.Stat(dpath + "/Author/new")
+	t.Nil(err)
+	t.Nil(filePath(dpath+"/Author/new", fileInfo, err))
+	t.DeepEqual(collection, collectionTest)
+}
+func addBook(t *check.C, path string, tm time.Duration) (int64, func()) {
+	t.Helper()
+	t.Nil(ioutil.WriteFile(path, nil, 0644))
+	t.Nil(os.Chtimes(path, time.Now().Add(tm), time.Now().Add(tm)))
+	t.Nil(makeColl(path))
+	fileInfo, err := os.Stat(path)
+	t.Nil(err)
+	lastAccess := fileInfo.ModTime().Unix() * 1000
+	cleanup := func() { t.Nil(os.Remove(path)) }
+	return lastAccess, cleanup
+}
 
 func TestMakeColl(tt *testing.T) {
 	t := check.T(tt)
 
+	// - создать временный каталог и в нем нужные для теста функции/файлы
 	tmpDir, err := ioutil.TempDir("", "gotest")
 	t.Nil(err)
 	defer func() { t.Nil(os.Remove(tmpDir)) }()
@@ -82,9 +198,14 @@ func TestMakeColl(tt *testing.T) {
 		}
 	}()
 
+	//   - убедиться что collection пустой
 	t.Len(collection, 0)
 
+	// - вызвать makeColl от одного из созданных файлов
+	//   - убедиться, что collection изменился ожидаемым образом
 	var collectionTest = make(map[string]*Books)
+
+	// - очистить collection и временный каталог
 	defer func() { collection = make(map[string]*Books) }()
 
 	fileInfo, err := os.Stat(dpath + "/Author/new/books.txt")
@@ -96,6 +217,8 @@ func TestMakeColl(tt *testing.T) {
 	t.Nil(makeColl(kindleDir + "/documents/Author/new/books.txt"))
 	t.DeepEqual(collectionTest, collection)
 
+	// - вызвать makeColl от следующего из созданных файлов
+	//   - убедиться, что collection изменился ожидаемым образом
 	fileInfo, err = os.Stat(dpath + "/Author/new/workpad.txt")
 	t.Nil(err)
 	collectionTest["Author-new@en-US"].Items = append(collectionTest["Author-new@en-US"].Items, "*1c80d93e03067312fd43b17d2a339d375e4bd560")
@@ -103,42 +226,29 @@ func TestMakeColl(tt *testing.T) {
 	t.Nil(makeColl(kindleDir + "/documents/Author/new/workpad.txt"))
 	t.DeepEqual(collection, collectionTest)
 
-	pathFirst := dpath + "/Author/new/timePast.txt"
-	timeFirst := time.Now().Add(-10 * time.Second)
-	t.Nil(ioutil.WriteFile(pathFirst, nil, 0644))
-	t.Nil(os.Chtimes(pathFirst, timeFirst, timeFirst))
-	defer func() { os.Remove(pathFirst) }()
-	collectionTest["Author-new@en-US"].Items = append(collectionTest["Author-new@en-US"].Items, "*86062d936f58942786e6e9dfb8443ddfedfe0e28")
-	t.Log(collectionTest["Author-new@en-US"].LastAccess)
-	t.Nil(makeColl(pathFirst))
+	// - записать значение в LastAccess
+	// - передать путь к более свежему файлу
+	//   - убедиться, что в LastAccess записаны данные модификации самые свежие
+	books := collectionTest["Author-new@en-US"]
+
+	lastAccess, cleanup := addBook(t, dpath+"/Author/new/timePast.txt", -10*time.Second)
+	defer cleanup()
+	books.Items = append(books.Items, "*86062d936f58942786e6e9dfb8443ddfedfe0e28")
 	t.DeepEqual(collection, collectionTest)
 
-	pathSecond := dpath + "/Author/new/timeNow.txt"
-	timeSecond := time.Now()
-	t.Nil(ioutil.WriteFile(pathSecond, nil, 0644))
-	t.Nil(os.Chtimes(pathSecond, timeSecond, timeSecond))
-	defer func() { os.Remove(pathSecond) }()
-	fileInfo, err = os.Stat(pathSecond)
-	t.Nil(err)
-	collectionTest["Author-new@en-US"].Items = append(collectionTest["Author-new@en-US"].Items, "*14a25ed50202fbc2c93fe3acb2dd72386212302c")
-	collectionTest["Author-new@en-US"].LastAccess = fileInfo.ModTime().Unix() * 1000
-	t.Log(collectionTest["Author-new@en-US"].LastAccess)
-	t.Nil(makeColl(pathSecond))
+	lastAccess, cleanup = addBook(t, dpath+"/Author/new/timeNow.txt", 1*time.Second)
+	defer cleanup()
+	books.Items = append(books.Items, "*14a25ed50202fbc2c93fe3acb2dd72386212302c")
+	books.LastAccess = lastAccess
 	t.DeepEqual(collection, collectionTest)
 
-	pathThird := dpath + "/Author/new/timeFuture.txt"
-	timeThird := time.Now().Add(10 * time.Second)
-	t.Nil(ioutil.WriteFile(pathThird, nil, 0644))
-	t.Nil(os.Chtimes(pathThird, timeThird, timeThird))
-	defer func() { os.Remove(pathThird) }()
-	fileInfo, err = os.Stat(pathThird)
-	t.Nil(err)
-	collectionTest["Author-new@en-US"].Items = append(collectionTest["Author-new@en-US"].Items, "*b3916c8105ceebfa611abf38ce331c4873046de7")
-	collectionTest["Author-new@en-US"].LastAccess = fileInfo.ModTime().Unix() * 1000
-	t.Log(collectionTest["Author-new@en-US"].LastAccess)
-	t.Nil(makeColl(pathThird))
+	lastAccess, cleanup = addBook(t, dpath+"/Author/new/timeFuture.txt", 10*time.Second)
+	defer cleanup()
+	books.Items = append(books.Items, "*b3916c8105ceebfa611abf38ce331c4873046de7")
+	books.LastAccess = lastAccess
 	t.DeepEqual(collection, collectionTest)
 
+	// - убедиться, что в collection добавляются новые записи
 	pathNewDir := dpath + "/Author/morenew"
 	t.Nil(os.Mkdir(pathNewDir, 0755))
 	defer func() { os.Remove(pathNewDir) }()
@@ -153,6 +263,14 @@ func TestMakeColl(tt *testing.T) {
 	}
 	t.Nil(makeColl(pathNewKey))
 	t.DeepEqual(collection, collectionTest)
+
+	// - вызвать makeColl от каталога, вместо файла
+	//  - убедиться, что программа выдаёт ошибку или панику
+	t.PanicMatch(func() { makeColl(kindleDir + "/documents/Author/new") }, `not a path to file`)
+
+	// - передать makeColl не корректный путь
+	//  - убедиться, что программа выдаёт ошибку или панику
+	t.PanicMatch(func() { makeColl("/catalog/name.txt") }, `not a kindle path`)
 }
 
 func TestIsKindle(tt *testing.T) {
@@ -204,7 +322,6 @@ func TestIsKindle(tt *testing.T) {
 		t := check.T(tt)
 
 		t.False(isKindle(tmpDir))
-
 	})
 
 	t.Run("DocumentsNotADir", func(tt *testing.T) {
@@ -215,7 +332,6 @@ func TestIsKindle(tt *testing.T) {
 		t.False(isKindle(tmpDir))
 		t.Nil(os.Remove(dpath))
 		t.Nil(os.Remove(spath))
-
 	})
 
 	t.Run("SystemNotADir", func(tt *testing.T) {
