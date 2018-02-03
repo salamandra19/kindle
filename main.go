@@ -39,6 +39,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	fmt.Println(collection)
 }
 
 var base []string
@@ -51,7 +52,6 @@ func filePath(path string, info os.FileInfo, err error) error {
 	if filepath.Dir(path) == kindleDir+"/documents" {
 		return nil
 	}
-
 	switch filepath.Ext(path) {
 	case ".mobi", ".pdf", ".prc", ".txt":
 		err := makeColl(path)
@@ -70,6 +70,13 @@ func filePath(path string, info os.FileInfo, err error) error {
 }
 
 func makeColl(path string) error {
+	if filepath.Ext(path) == "" {
+		panic("not a path to file")
+	}
+	re := regexp.MustCompile(kindleDir + `/documents/*.*$`)
+	if !re.MatchString(path) {
+		panic("not a kindle path")
+	}
 	coll := strings.Replace(Abs2KindlePath(filepath.Dir(path)), "/", "-", -1) + "@en-US"
 	sha := fmt.Sprintf("*%x", sha1.Sum([]byte("/mnt/us/documents/"+Abs2KindlePath(path))))
 	if collection[coll] == nil {
@@ -87,7 +94,11 @@ func makeColl(path string) error {
 }
 
 func Abs2KindlePath(path string) string {
-	return strings.TrimPrefix(path, kindleDir+"/documents/")
+	kindlePath := strings.TrimPrefix(path, kindleDir+"/documents/")
+	if kindlePath == path {
+		panic("not a kindle path")
+	}
+	return kindlePath
 }
 
 func match(s string) bool {
